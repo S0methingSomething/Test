@@ -28,12 +28,22 @@ jobs:
           sudo mv apkeep /usr/local/bin/
           apkeep --version
 
-      # Step 3: Download the latest official BitLife APK and list files to confirm
-      - name: Download BitLife APK
+      # Step 3: Download BitLife APK and *explicitly verify* the download
+      - name: Download and Verify BitLife APK
         run: |
-          echo "Downloading latest official BitLife APK..."
-          apkeep -a com.candywriter.bitlife .
-          echo "--- Listing files in workspace to confirm APK name ---"
+          echo "Downloading latest official BitLife APK using a 'pixel6' device profile..."
+          # The -d flag makes the request more likely to succeed
+          apkeep -a com.candywriter.bitlife -d pixel6 .
+          
+          echo "--- Verifying that the APK was downloaded ---"
+          # This command checks if any file matching the pattern exists.
+          # If not, it prints a clear error and exits the workflow.
+          if ! ls com.candywriter.bitlife*.apk 1> /dev/null 2>&1; then
+            echo "::error::CRITICAL: apkeep ran but did NOT download the APK file. Halting workflow."
+            exit 1
+          fi
+
+          echo "✅ APK successfully downloaded. Contents of workspace:"
           ls -l
 
       # Step 4: Run Android 10 Emulator and the full script
@@ -43,7 +53,7 @@ jobs:
           api-level: 29 # Android 10
           script: |
             echo "--- Installing downloaded BitLife APK ---"
-            # CRITICAL FIX: Use a wildcard (*) to match the APK filename regardless of version.
+            # The wildcard is still correct, and now we know the file exists.
             adb install com.candywriter.bitlife*.apk
 
             echo "--- Launching BitLife to generate files ---"
