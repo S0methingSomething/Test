@@ -13,12 +13,10 @@ jobs:
     steps:
       # Step 1: CRITICAL - Enable KVM hardware acceleration for the emulator
       - name: Enable KVM
+        # THIS IS THE FIX: The 'with:' block has been removed as this action takes no inputs.
         uses: fast-actions/setup-kvm@v1
-        with:
-          # This action ensures the runner is ready for fast emulation.
-          # No other inputs are needed.
 
-      # Step 2: Install 'apkeep' using the reliable hardcoded URL
+      # Step 2: Install 'apkeep' using a hardcoded URL for maximum reliability
       - name: Download and Install apkeep
         run: |
           echo "Hardcoding the download URL for apkeep v0.17.0 to ensure this step works."
@@ -34,7 +32,6 @@ jobs:
           apkeep -a com.candywriter.bitlife .
 
       # Step 4: Run Android 10 Emulator and the full script
-      # This step will now automatically use the KVM enabled in Step 1.
       - name: Run Emulator, Install App, and Extract File
         uses: reactivecircus/android-emulator-runner@v2
         with:
