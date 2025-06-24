@@ -7,32 +7,34 @@ on:
 
 jobs:
   automated-extraction:
-    # Use the reliable Linux runner
+    # We are using the Linux runner, which requires KVM to be enabled.
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Install 'apkeep' using a hardcoded URL for maximum reliability
+      # Step 1: CRITICAL - Enable KVM hardware acceleration for the emulator
+      - name: Enable KVM
+        uses: fast-actions/setup-kvm@v1
+        with:
+          # This action ensures the runner is ready for fast emulation.
+          # No other inputs are needed.
+
+      # Step 2: Install 'apkeep' using the reliable hardcoded URL
       - name: Download and Install apkeep
         run: |
           echo "Hardcoding the download URL for apkeep v0.17.0 to ensure this step works."
-          
-          # Use the exact, known-working URL.
           curl -L -o apkeep "https://github.com/EFForg/apkeep/releases/download/0.17.0/apkeep-x86_64-unknown-linux-gnu"
-          
-          # Make the downloaded file executable and move it to the system path
           chmod +x apkeep
           sudo mv apkeep /usr/local/bin/
-          
-          # Verify the installation
           apkeep --version
 
-      # Step 2: Download the latest official BitLife APK using apkeep
+      # Step 3: Download the latest official BitLife APK using apkeep
       - name: Download BitLife APK
         run: |
           echo "Downloading latest official BitLife APK..."
           apkeep -a com.candywriter.bitlife .
 
-      # Step 3: Run Android 10 Emulator and the full script
+      # Step 4: Run Android 10 Emulator and the full script
+      # This step will now automatically use the KVM enabled in Step 1.
       - name: Run Emulator, Install App, and Extract File
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -56,7 +58,7 @@ jobs:
             echo "--- Pulling 'MonetizationVars' file ---"
             adb pull /data/data/com.candywriter.bitlife/files/MonetizationVars .
 
-      # Step 4: Verify and Use the Extracted File
+      # Step 5: Verify and Use the Extracted File
       - name: Verify and Display Extracted File
         run: |
           if [ -f "MonetizationVars" ]; then
@@ -69,7 +71,7 @@ jobs:
             exit 1
           fi
 
-      # Step 5: (Optional) Upload the final result
+      # Step 6: (Optional) Upload the final result
       - name: Upload MonetizationVars as an artifact
         uses: actions/upload-artifact@v4
         with:
