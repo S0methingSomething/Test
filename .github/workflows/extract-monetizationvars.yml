@@ -32,8 +32,8 @@ jobs:
       - name: Download and Verify BitLife APK
         run: |
           echo "Downloading latest official BitLife APK using a 'pixel6' device profile..."
-          # The -d flag makes the request more likely to succeed
-          apkeep -a com.candywriter.bitlife -d pixel6 .
+          # CRITICAL FIX: Use the correct '--device' flag instead of '-d'.
+          apkeep -a com.candywriter.bitlife --device pixel6 .
           
           echo "--- Verifying that the APK was downloaded ---"
           # This command checks if any file matching the pattern exists.
