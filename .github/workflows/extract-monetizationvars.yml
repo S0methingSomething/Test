@@ -31,13 +31,12 @@ jobs:
       # Step 3: Download BitLife APK and *explicitly verify* the download
       - name: Download and Verify BitLife APK
         run: |
-          echo "Downloading latest official BitLife APK using a 'pixel6' device profile..."
-          # CRITICAL FIX: Use the correct '--device' flag instead of '-d'.
-          apkeep -a com.candywriter.bitlife --device pixel6 .
+          echo "Downloading latest official BitLife APK..."
+          # CRITICAL FIX: Removed all incorrect flags. Using the basic, correct command for this version.
+          apkeep -a com.candywriter.bitlife .
           
           echo "--- Verifying that the APK was downloaded ---"
-          # This command checks if any file matching the pattern exists.
-          # If not, it prints a clear error and exits the workflow.
+          # This verification step is our safety net. If the command above fails silently, this will catch it.
           if ! ls com.candywriter.bitlife*.apk 1> /dev/null 2>&1; then
             echo "::error::CRITICAL: apkeep ran but did NOT download the APK file. Halting workflow."
             exit 1
@@ -53,7 +52,7 @@ jobs:
           api-level: 29 # Android 10
           script: |
             echo "--- Installing downloaded BitLife APK ---"
-            # The wildcard is still correct, and now we know the file exists.
+            # The wildcard correctly handles the versioned filename.
             adb install com.candywriter.bitlife*.apk
 
             echo "--- Launching BitLife to generate files ---"
