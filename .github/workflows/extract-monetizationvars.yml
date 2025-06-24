@@ -7,11 +7,11 @@ on:
 
 jobs:
   automated-extraction:
-    # We are using the Linux runner.
+    # Use the reliable Linux runner
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: CRITICAL FIX - Enable KVM using the official, dependency-free method.
+      # Step 1: Enable KVM hardware acceleration using the dependency-free method
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm-permissions.rules
@@ -19,7 +19,7 @@ jobs:
           sudo udevadm trigger
           sudo usermod -a -G kvm $USER
 
-      # Step 2: Install 'apkeep' using a hardcoded URL for maximum reliability
+      # Step 2: Install 'apkeep' using the reliable hardcoded URL
       - name: Download and Install apkeep
         run: |
           echo "Hardcoding the download URL for apkeep v0.17.0 to ensure this step works."
@@ -28,11 +28,13 @@ jobs:
           sudo mv apkeep /usr/local/bin/
           apkeep --version
 
-      # Step 3: Download the latest official BitLife APK using apkeep
+      # Step 3: Download the latest official BitLife APK and list files to confirm
       - name: Download BitLife APK
         run: |
           echo "Downloading latest official BitLife APK..."
           apkeep -a com.candywriter.bitlife .
+          echo "--- Listing files in workspace to confirm APK name ---"
+          ls -l
 
       # Step 4: Run Android 10 Emulator and the full script
       - name: Run Emulator, Install App, and Extract File
@@ -41,7 +43,8 @@ jobs:
           api-level: 29 # Android 10
           script: |
             echo "--- Installing downloaded BitLife APK ---"
-            adb install com.candywriter.bitlife.apk
+            # CRITICAL FIX: Use a wildcard (*) to match the APK filename regardless of version.
+            adb install com.candywriter.bitlife*.apk
 
             echo "--- Launching BitLife to generate files ---"
             adb shell monkey -p com.candywriter.bitlife -c android.intent.category.LAUNCHER 1
