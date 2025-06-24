@@ -7,45 +7,42 @@ on:
 
 jobs:
   automated-extraction:
-    # CRITICAL CHANGE: Switched to a Linux runner, which has a compatible apkeep binary.
+    # We are staying on the Linux runner, as it's the most compatible.
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Install 'apkeep' to programmatically download the APK
+      # Step 1: Install 'apkeep' using a robust JSON parser (jq)
       - name: Download and Install apkeep
         run: |
           # The architecture on ubuntu-latest is x86_64
           ARCH=$(uname -m)
           echo "Detected architecture: $ARCH"
-
-          # CRITICAL CHANGE: The grep pattern now looks for the 'x86_64-unknown-linux-gnu' file, which exists.
-          # It also no longer looks for .tar.gz, as the release asset is a direct executable.
-          LATEST_APKEEP_URL=$(curl -s "https://api.github.com/repos/EFForg/apkeep/releases/latest" | grep "browser_download_url.*${ARCH}-unknown-linux-gnu" | grep -v ".sig" | cut -d : -f 2,3 | tr -d \")
+          
+          # CRITICAL FIX: Use 'jq' to reliably parse the JSON response from the GitHub API.
+          # This avoids all issues with spaces or malformed strings from grep/cut/tr.
+          # It finds the asset where the name exactly matches our target and extracts its download URL.
+          LATEST_APKEEP_URL=$(curl -s "https://api.github.com/repos/EFForg/apkeep/releases/latest" | jq -r --arg arch "$ARCH" '.assets[] | select(.name == "\($arch)-unknown-linux-gnu") | .browser_download_url')
 
           if [ -z "$LATEST_APKEEP_URL" ]; then
-            echo "::error::Could not find a download URL for apkeep on ${ARCH}-unknown-linux-gnu architecture."
+            echo "::error::Could not find a download URL for apkeep on ${ARCH}-unknown-linux-gnu architecture using jq."
             exit 1
           fi
 
-          echo "Downloading apkeep from $LATEST_APKEEP_URL"
-          # CRITICAL CHANGE: Download the executable directly and give it a simple name.
+          echo "Downloading apkeep from: $LATEST_APKEEP_URL"
           curl -L -o apkeep "$LATEST_APKEEP_URL"
 
-          # CRITICAL CHANGE: Make the downloaded file executable and move it to the system path.
           chmod +x apkeep
           sudo mv apkeep /usr/local/bin/
           
           apkeep --version # Verify installation
 
       # Step 2: Download the latest official BitLife APK using apkeep
-      # This step remains the same and works perfectly on Linux.
       - name: Download BitLife APK
         run: |
           echo "Downloading latest official BitLife APK..."
           apkeep -a com.candywriter.bitlife .
 
       # Step 3: Run Android 10 Emulator and the full script
-      # This step remains the same. The emulator runner works great on Ubuntu.
       - name: Run Emulator, Install App, and Extract File
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -70,7 +67,6 @@ jobs:
             adb pull /data/data/com.candywriter.bitlife/files/MonetizationVars .
 
       # Step 4: Verify and Use the Extracted File
-      # This step remains the same.
       - name: Verify and Display Extracted File
         run: |
           if [ -f "MonetizationVars" ]; then
@@ -84,7 +80,6 @@ jobs:
           fi
 
       # Step 5: (Optional) Upload the final result
-      # This step remains the same.
       - name: Upload MonetizationVars as an artifact
         uses: actions/upload-artifact@v4
         with:
