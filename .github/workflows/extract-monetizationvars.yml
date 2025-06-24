@@ -1,0 +1,77 @@
+name: Fully Automated BitLife File Extraction
+
+on:
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: '0 2 * * 1' # Optional: run automatically every Monday at 2 AM UTC
+
+jobs:
+  automated-extraction:
+    runs-on: macos-latest
+
+    steps:
+      # Step 1: Install 'apkeep' to programmatically download the APK
+      - name: Download and Install apkeep
+        run: |
+          # Fetch the latest release URL for apkeep on macOS x86_64
+          LATEST_APKEEP_URL=$(curl -s "https://api.github.com/repos/EFForg/apkeep/releases/latest" | grep "browser_download_url.*darwin-x86_64.tar.gz" | cut -d : -f 2,3 | tr -d \")
+          echo "Downloading apkeep from $LATEST_APKEEP_URL"
+          curl -L -o apkeep.tar.gz $LATEST_APKEEP_URL
+          tar -xzf apkeep.tar.gz
+          sudo mv apkeep /usr/local/bin/ # Move it to a directory in the PATH
+          apkeep --version # Verify installation
+
+      # Step 2: Download the latest official BitLife APK using apkeep
+      - name: Download BitLife APK
+        run: |
+          echo "Downloading latest official BitLife APK..."
+          # The -a flag specifies the app package ID. It will download the APK to the current directory.
+          # The filename will be 'com.candywriter.bitlife.apk'
+          apkeep -a com.candywriter.bitlife .
+
+      # Step 3: Run Android 10 Emulator and the full script
+      - name: Run Emulator, Install App, and Extract File
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29 # Android 10
+          script: |
+            echo "--- Installing downloaded BitLife APK ---"
+            # Installs the APK that apkeep downloaded in the previous step
+            adb install com.candywriter.bitlife.apk
+
+            echo "--- Launching BitLife to generate files ---"
+            adb shell monkey -p com.candywriter.bitlife -c android.intent.category.LAUNCHER 1
+            
+            echo "--- Waiting 20 seconds for file generation ---"
+            sleep 20
+
+            echo "--- Simulating random taps for 1 minute to ensure app runs ---"
+            # This is a robust way to ensure the app is "used"
+            # It sends 100 random events over 60 seconds.
+            adb shell monkey -p com.candywriter.bitlife --throttle 600 100
+
+            echo "--- Force-stopping app to ensure data is written to disk ---"
+            adb shell am force-stop com.candywriter.bitlife
+
+            echo "--- Pulling 'MonetizationVars' file ---"
+            adb pull /data/data/com.candywriter.bitlife/files/MonetizationVars .
+
+      # Step 4: Verify and Use the Extracted File
+      - name: Verify and Display Extracted File
+        run: |
+          if [ -f "MonetizationVars" ]; then
+            echo "✅ SUCCESS: 'MonetizationVars' was extracted via full automation."
+            echo "--- File Contents ---"
+            cat MonetizationVars
+            echo "---------------------"
+          else
+            echo "❌ ERROR: 'MonetizationVars' was NOT found. The automation script likely failed."
+            exit 1
+          fi
+
+      # Step 5: (Optional) Upload the final result
+      - name: Upload MonetizationVars as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitlife-monetization-vars
+          path: MonetizationVars
