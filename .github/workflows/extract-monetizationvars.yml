@@ -1,9 +1,9 @@
 name: Fully Automated BitLife File Extraction
 
 on:
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
   schedule:
-    - cron: '0 2 * * 1' # Optional: run automatically every Monday at 2 AM UTC
+    - cron: '0 2 * * 1' # Optional: runs automatically every Monday at 2 AM UTC
 
 jobs:
   automated-extraction:
@@ -13,12 +13,24 @@ jobs:
       # Step 1: Install 'apkeep' to programmatically download the APK
       - name: Download and Install apkeep
         run: |
-          # Fetch the latest release URL for apkeep on macOS x86_64
-          LATEST_APKEEP_URL=$(curl -s "https://api.github.com/repos/EFForg/apkeep/releases/latest" | grep "browser_download_url.*darwin-x86_64.tar.gz" | cut -d : -f 2,3 | tr -d \")
+          # Dynamically determine the runner's architecture (e.g., 'arm64' or 'x86_64')
+          ARCH=$(uname -m)
+          echo "Detected architecture: $ARCH"
+
+          # Find the download URL for the correct architecture.
+          # The grep pattern now uses the detected $ARCH variable to be future-proof.
+          LATEST_APKEEP_URL=$(curl -s "https://api.github.com/repos/EFForg/apkeep/releases/latest" | grep "browser_download_url.*darwin-${ARCH}.tar.gz" | cut -d : -f 2,3 | tr -d \")
+
+          # Add a check to ensure the URL was actually found before proceeding
+          if [ -z "$LATEST_APKEEP_URL" ]; then
+            echo "::error::Could not find a download URL for apkeep on darwin-${ARCH} architecture."
+            exit 1
+          fi
+
           echo "Downloading apkeep from $LATEST_APKEEP_URL"
-          curl -L -o apkeep.tar.gz $LATEST_APKEEP_URL
+          curl -L -o apkeep.tar.gz "$LATEST_APKEEP_URL"
           tar -xzf apkeep.tar.gz
-          sudo mv apkeep /usr/local/bin/ # Move it to a directory in the PATH
+          sudo mv apkeep /usr/local/bin/
           apkeep --version # Verify installation
 
       # Step 2: Download the latest official BitLife APK using apkeep
